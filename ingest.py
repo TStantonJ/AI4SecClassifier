@@ -3,10 +3,10 @@ import json
 
 def proc():
     
-    # First argument is the json file name
+    # First argument is the jq file name
     if len(sys.argv) <= 1:
-        print ("Missing json file")
-        print ('Usage: '+sys.argv[0]+" <jsonfile>")
+        print ("Missing jq file")
+        print ('Usage: '+sys.argv[0]+" <jq file>")
         sys.exit(-1)
 
     try:
