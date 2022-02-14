@@ -3,3 +3,6 @@ ssh_bruteforce_files
 
 #Ignoring my local enviroment
 env
+
+#Ignoring mac things
+.DS_Store
