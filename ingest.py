@@ -3,6 +3,9 @@ import json
 import gzip
 from pathlib import Path
 
+# Convert compressed json file into compressed line seperated json file
+# Takes location of inital gzipped json file
+# Returns line seperated gzipped json file
 def proc():
     
     # First argument is the jq file name
@@ -44,8 +47,8 @@ def proc():
                     record = ''
 
                     #Debug break on complete objects
-                    if counter > 1000:
-                        break
+                    #if counter > 1000:
+                    #    break
                 else:
                     line = line.lstrip()
                     record += line
