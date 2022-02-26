@@ -9,11 +9,7 @@ import os
 # Returns line seperated gzipped json file
 def proc(directory = './ingestFiles'):
     
-    # First argument is the jq file name
-    if len(sys.argv) <= 1:
-        print ("Missing json file")
-        print ('Usage: '+sys.argv[0]+" <json file>")
-        sys.exit(-1)
+    
 
     try:
         # Look through all files to ingest
@@ -25,11 +21,12 @@ def proc(directory = './ingestFiles'):
             filesTested += 1
 
             # Open new file (in file + _CONVERTED) to write the new data to
-            inName = Path(sys.argv[1]).resolve().stem
-            with gzip.open('./preprocesserFiles/'+ inName.rsplit('.', 1)[0]+'_CONVERTED.json.gz', 'w') as f_out:
-
+            in_handle = gzip.open(os.path.join(directory, file), 'r')
+            #inName = Path(sys.argv[1]).resolve().stem
+            with gzip.open('./preprocesserFiles/'+ file +'_CONVERTED.json.gz', 'w') as f_out:
+                counter = 0
                 # Convert data
-                in_handle = gzip.open(sys.argv[1], 'r')
+                #in_handle = gzip.open(sys.argv[1], 'r')
                 record = ''
                 obj = ''
 
