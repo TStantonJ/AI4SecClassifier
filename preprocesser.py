@@ -9,7 +9,7 @@ import re
 import math
 
 # Data Order: Port, source IP, dest IP,
-def preprocess(directory = './preprocessFiles'):
+def preprocess(directory = './preprocesserFiles'):
 
     try:
         with gzip.open('./classifierFiles/goodData.gz', 'w') as good_data_out:
