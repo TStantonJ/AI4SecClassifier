@@ -1,5 +1,5 @@
 #Ignoring my local ssh_bruteforce files
-ssh_bruteforce_files
+localDataFiles
 
 #Ignoring my local enviroment
 env
