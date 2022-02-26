@@ -26,7 +26,7 @@ def proc(directory = './ingestFiles'):
 
             # Open new file (in file + _CONVERTED) to write the new data to
             inName = Path(sys.argv[1]).resolve().stem
-            with gzip.open(inName.rsplit('.', 1)[0]+'_CONVERTED.json.gz', 'w') as f_out:
+            with gzip.open('./preprocesserFiles/'+ inName.rsplit('.', 1)[0]+'_CONVERTED.json.gz', 'w') as f_out:
 
                 # Convert data
                 in_handle = gzip.open(sys.argv[1], 'r')
