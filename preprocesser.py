@@ -114,7 +114,7 @@ def preprocess(directory = './preprocesserFiles'):
         bad_data_out.close()
 
     except (IOError, KeyError) as e:
-        print(str(e))
+        #print(str(e))
         pass
 
 
