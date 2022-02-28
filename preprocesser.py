@@ -10,11 +10,9 @@ import math
 
 # Data Order: Port, source IP, dest IP,
 def preprocess(directory = './preprocesserFiles'):
-
     try:
         with gzip.open('./classifierFiles/goodData.gz', 'w') as good_data_out:
             with gzip.open('./classifierFiles/badData.gz', 'w') as bad_data_out:
-                
                 # Process every file in proccess directory
                 sortedFiles = sorted((f for f in os.listdir(directory) if not f.startswith(".")), key=str.lower)
                 for file in sortedFiles:
