@@ -86,14 +86,31 @@ def preprocess(directory = './preprocesserFiles'):
                         new_line = '\n'
                         new_line_encoded = new_line.encode('utf-8')
 
-                        # Create string containing recorded data
-                        data_string = tcp_src
+                        # Create PreProcessed Data containing recorded data
+                        data_string = new_ip_src            #IP source address
                         data_string += ','
-                        data_string += tcp_dst
+                        data_string += new_ip_dst           #IP destination address
+                        # SSH brute
                         data_string += ','
-                        data_string += new_ip_src
+                        data_string += tcp_src              #TCP source port
                         data_string += ','
-                        data_string += new_ip_dst
+                        data_string += tcp_dst              #TCP destination port
+                        # Port scanning(Maybe change from src -> dst to src to all ips )
+                        data_string += ','
+                        data_string += tcp_syns             #Number of tcp SYNs src_ip sent to dst_ip; 
+                        data_string += ','
+                        data_string += tcp_acks             #Number of tcp ACKs dst_ip sent back to src_ip
+                        # Subnet scanning
+                        data_string += ','
+                        data_string += packets_exchanged    #Number of packets exchanged between src and dst
+                        data_string += ','
+                        data_string += num_small_exchanges  #Number of unique IP address ip_src talked to that had less than 32 packets exchanged
+                        # Fuzz (maybe add uri strings)
+                        data_string += ','
+                        data_string += bad_http_code        #Number of 404 packets from a tcp_dst = 80 to ip_src
+                        data_string += ','
+                        data_string += unique_http_URI      #Number of unique http URIs sent from ip_src to a tcp_dst=80
+
 
                         # Convert data string to bytes
                         data_string_encoded = data_string.encode('utf-8')
@@ -157,6 +174,11 @@ def getMetaData(_directory, _file):
         pass
     return ret_ip_dict
 
+# AMT of 404 response codes recieved to other codes per IP
+['_source']['layers']['http']['http.response.code'] == '404'
+
 
 if __name__ == '__main__':
     preprocess()
+
+    
