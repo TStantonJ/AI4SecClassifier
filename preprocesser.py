@@ -11,7 +11,6 @@ import math
 
 # Data Order: Port, source IP, dest IP,
 def preprocess(directory = './preprocesserFiles'):
-    debugCount = 0
     try:
         with gzip.open('./classifierFiles/goodData.gz', 'w') as good_data_out:
             with gzip.open('./classifierFiles/badData.gz', 'w') as bad_data_out:
@@ -53,6 +52,9 @@ def preprocess(directory = './preprocesserFiles'):
                             ip_src = jsonObj['_source']['layers']['ip']['ip.src']
                             ip_dst = jsonObj['_source']['layers']['ip']['ip.dst']
 
+                            #Catch 127.0.0.1
+                            if ip_dst == '127.0.0.1' or ip_src == '127.0.0.1':
+                                continue
                             if ip_src == ip_dst:
                                 continue
 
@@ -233,25 +235,23 @@ def preprocess(directory = './preprocesserFiles'):
         bad_data_out.close()
 
     except (IOError, KeyError) as e:
-        print('ERROR on item: ', item_number)
-        print(str(e))
-        print(debugCount)
-        #print(tcp_meta_dict[ip_src][ip_dst])
+        #print('ERROR on item: ', item_number)
+        #print(str(e))
 
 
-        print('src: ',new_ip_src)
-        print('dst: ',new_ip_dst)
-        print('tcp src port:', tcp_src)
-        print('tcp dst port:',tcp_dst)
-        print('tcp ssh count:',tcp_SSH_count)
-        print('total packets sent: ',total_packets_sent)
-        print('total tcp syns: ',tcp_syns)
-        print('total tcp acks: ',tcp_acks)
-        print('total packets exchanged: ',packets_exchanged)
-        print('number of small exchanges: ',num_small_exchanges)
-        print('number of bad http codes: ',bad_http_codes)
-        print('number of unique https uris: ',unique_http_URIs)
-        print('DONE')
+        #print('src: ',new_ip_src)
+        #print('dst: ',new_ip_dst)
+        #print('tcp src port:', tcp_src)
+        #print('tcp dst port:',tcp_dst)
+        #print('tcp ssh count:',tcp_SSH_count)
+        #print('total packets sent: ',total_packets_sent)
+        #print('total tcp syns: ',tcp_syns)
+        #print('total tcp acks: ',tcp_acks)
+        #print('total packets exchanged: ',packets_exchanged)
+        #print('number of small exchanges: ',num_small_exchanges)
+        #print('number of bad http codes: ',bad_http_codes)
+        #print('number of unique https uris: ',unique_http_URIs)
+        #print('DONE')
         #print(jsonObj['_source']['layers']['http'])
         pass
 
@@ -370,23 +370,23 @@ def getMetaData(_directory, _file):
                             
 
     except(IOError, KeyError) as r:
-        print(str(r))
-        print('FAIL in data gathering:')
-        print('src ip:', src)
-        print('dst ip:', dst)
-        print(ret_ip_dict[src])
+        #print(str(r))
+        #print('FAIL in data gathering:')
+        #print('src ip:', src)
+        #print('dst ip:', dst)
+        #print(ret_ip_dict[src])
         #print(ret_tcp_dict)
-        if src in ret_tcp_dict:
-            print(ret_tcp_dict)
-        if src in ret_http_dict:
-            print('\n\n',ret_http_dict)
-        if ret_ip_dict is None:
-            print('ip dict is None')
-        if ret_tcp_dict is None:
-            print('tcp dict is None')
-        if ret_http_dict is None:
-            print('http dict is None')
-        print('End of error readout')
+        #if src in ret_tcp_dict:
+        #    print(ret_tcp_dict)
+        #if src in ret_http_dict:
+        #    print('\n\n',ret_http_dict)
+        #if ret_ip_dict is None:
+        #    print('ip dict is None')
+        #if ret_tcp_dict is None:
+        #    print('tcp dict is None')
+        #if ret_http_dict is None:
+        #    print('http dict is None')
+        #print('End of error readout')
         pass
     
     data_handle.close()
