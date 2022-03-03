@@ -11,21 +11,29 @@ import math
 
 # Data Order: Port, source IP, dest IP,
 def preprocess(directory = './preprocesserFiles'):
+    debugCount = 0
     try:
         with gzip.open('./classifierFiles/goodData.gz', 'w') as good_data_out:
             with gzip.open('./classifierFiles/badData.gz', 'w') as bad_data_out:
                 # Process every file in proccess directory
                 sortedFiles = sorted((f for f in os.listdir(directory) if not f.startswith(".")), key=str.lower)
+                
                 for file in sortedFiles:
+                    
                     # Get current file and check its appropriate
                     filename = os.fsdecode(file)
 
 
                     # Get/store Meta Data from current file
                     meta_dict, tcp_meta_dict, http_meta_dict = getMetaData(directory, file)
+                    # Item tracking for debug/Arrays to check outputs
+                    item_number = 0
+                    good_data_numbers = [430,431,432,433,434,435,436,437,438]
+                    bad_data_numbers = [700,701,702,703,704,708,709,710]
 
                     in_handle = gzip.open(os.path.join(directory, file), 'r')
                     for line in in_handle:
+                        item_number += 1
 
                         # ---Setup---
                         # Check variables
@@ -44,6 +52,9 @@ def preprocess(directory = './preprocesserFiles'):
                         if 'ip' in jsonObj['_source']['layers']:
                             ip_src = jsonObj['_source']['layers']['ip']['ip.src']
                             ip_dst = jsonObj['_source']['layers']['ip']['ip.dst']
+
+                            if ip_src == ip_dst:
+                                continue
 
                             src_parts = ip_src.split('.')
                             new_ip_src = ''
@@ -68,56 +79,86 @@ def preprocess(directory = './preprocesserFiles'):
                             new_ip_src = '0'
                             new_ip_dst = '0'
                         # TCP Ports
-                        if 'tcp' in jsonObj['_source']['layers']:
-                            tcp_src = str(jsonObj['_source']['layers']['tcp']['tcp.srcport'])
-                            tcp_dst = str(jsonObj['_source']['layers']['tcp']['tcp.dstport'])
+                        if new_ip_src != '0':
+                            if 'tcp' in jsonObj['_source']['layers']:
+                                tcp_src = str(jsonObj['_source']['layers']['tcp']['tcp.srcport'])
+                                tcp_dst = str(jsonObj['_source']['layers']['tcp']['tcp.dstport'])
+                            else:
+                                tcp_src = '0'
+                                tcp_dst = '0'
                         else:
                             tcp_src = '0'
                             tcp_dst = '0'
                         # SSH bruteforce
-                        if 'tcp' in jsonObj['_source']['layers']:
-                            if tcp_meta_dict[ip_src][ip_dst].get('22') != None:
-                                tcp_SSH_count = str(tcp_meta_dict[ip_src][ip_dst].get('22'))
+                        
+                        if new_ip_src != '0':
+                            if 'tcp' in jsonObj['_source']['layers']:
+                                if tcp_meta_dict[ip_src][ip_dst].get('22') == None:
+                                    tcp_SSH_count = '0'
+                                else:
+                                    tcp_SSH_count = str(tcp_meta_dict[ip_src][ip_dst].get('22'))
                             else:
                                 tcp_SSH_count = '0'
                         else:
                             tcp_SSH_count = '0'
+                        
                         if new_ip_src != '0':
                             total_packets_sent = str(meta_dict[ip_src].get('totalSent'))
-                        # Port scanning
-                        if 'tcp' in jsonObj['_source']['layers']:
-                            tcp_syns = str(tcp_meta_dict[ip_src][ip_dst]['syn'])
-                            tcp_acks = str(tcp_meta_dict[ip_dst][ip_src]['ack'])
                         else:
-                            tcp_src = '0'
-                            tcp_dst = '0'
+                            total_packets_sent = '0'
+                        # Port scanning
+                        if new_ip_src != '0':
+                            if 'tcp' in jsonObj['_source']['layers']:
+                                tcp_syns = str(tcp_meta_dict[ip_src][ip_dst]['syn'])
+                                if ip_dst in tcp_meta_dict:             # WE KNOW IF AN IP TRIES TO COMMUNICATED WITH AN IP THAT DOESNT EVER TALK TO ANYONE EVER
+                                    if ip_src in tcp_meta_dict[ip_dst]:
+                                        tcp_acks = str(tcp_meta_dict[ip_dst][ip_src]['ack'])
+                                    else:
+                                        tcp_acks = '0'
+                                else:
+                                    tcp_acks = '0'
+                            else:
+                                tcp_syns = '0'
+                                tcp_acks = '0'
+                        else:
+                            tcp_syns = '0'
+                            tcp_acks = '0'
                         # Subnet scanning
                         if new_ip_src != '0':
-                            if meta_dict[ip_src].get(ip_dst) != None and meta_dict[ip_dst].get(ip_src) != None:
-                                packets_exchanged = str(int(meta_dict[ip_src][ip_dst])+int(meta_dict[ip_dst][ip_src]))
-                                num_small_exchanges = 0
-                                for com in meta_dict[ip_src]:
-                                    if com != 'totalSent' and com != 'totalRecieved':
-                                        if meta_dict[ip_src][com] <= 32:
-                                            num_small_exchanges += 1
-                                num_small_exchanges = str(num_small_exchanges)
+                            if ip_dst in meta_dict and ip_src in meta_dict:
+                                if meta_dict[ip_src].get(ip_dst) != None and meta_dict[ip_dst].get(ip_src) != None:
+                                    packets_exchanged = str(int(meta_dict[ip_src][ip_dst])+int(meta_dict[ip_dst][ip_src]))
+                                    num_small_exchanges = 0
+                                    for com in meta_dict[ip_src]:
+                                        if com != 'totalSent' and com != 'totalRecieved':
+                                            if meta_dict[ip_src][com] <= 32:
+                                                num_small_exchanges += 1
+                                    num_small_exchanges = str(num_small_exchanges)
+                                else:
+                                    packets_exchanged = '0'
+                                    num_small_exchanges = '0'
                             else:
                                 packets_exchanged = '0'
+                                num_small_exchanges = '0'
                         else:
                             packets_exchanged = '0'
                             num_small_exchanges = '0'
                         # Fuzz
                         unique_http_URIs = 0
-                        if new_ip_src != 0:
-                            if http_meta_dict[ip_src].get('404s') != None:
-                                bad_http_codes = str(http_meta_dict[ip_src].get('404s'))           
+                        if new_ip_src != '0' and 'http' in jsonObj['_source']['layers']:
+                            if ip_src in http_meta_dict:
+                                if http_meta_dict[ip_src].get('404s') != None:
+                                    bad_http_codes = str(http_meta_dict[ip_src].get('404s'))           
+                                else:
+                                    bad_http_codes = '0'
+                                for uri in http_meta_dict[ip_src]:
+                                    if uri != '404s':
+                                        unique_http_URIs += 1
                             else:
-                                bad_http_codes = '0'
-                            for uri in http_meta_dict[ip_src]:
-                                if uri != '404s':
-                                    unique_http_URIs += 1
+                                    bad_http_codes = '0'
+                        else:
+                            bad_http_codes = '0'
                         unique_http_URIs = str(unique_http_URIs)
-
 
 
                         # Perform checks
@@ -130,7 +171,6 @@ def preprocess(directory = './preprocesserFiles'):
                         if fuzz_check(): #TODO
                             bad_flag = True 
                         
-
 
                         # ---Data Out---
                         # New line encoded variable (for data seperation)
@@ -181,13 +221,38 @@ def preprocess(directory = './preprocesserFiles'):
                         else:
                             good_data_out.write(data_string_encoded)
                             good_data_out.write(new_line_encoded)
+
+                        #Debug print statements
+                        if item_number in good_data_numbers:
+                            print('Good Item:', data_string)
+                        elif item_number in bad_data_numbers:
+                            print('Bad Item: ', data_string)
                         
         # Close files
         good_data_out.close()
         bad_data_out.close()
 
     except (IOError, KeyError) as e:
-        #print(str(e))
+        print('ERROR on item: ', item_number)
+        print(str(e))
+        print(debugCount)
+        #print(tcp_meta_dict[ip_src][ip_dst])
+
+
+        print('src: ',new_ip_src)
+        print('dst: ',new_ip_dst)
+        print('tcp src port:', tcp_src)
+        print('tcp dst port:',tcp_dst)
+        print('tcp ssh count:',tcp_SSH_count)
+        print('total packets sent: ',total_packets_sent)
+        print('total tcp syns: ',tcp_syns)
+        print('total tcp acks: ',tcp_acks)
+        print('total packets exchanged: ',packets_exchanged)
+        print('number of small exchanges: ',num_small_exchanges)
+        print('number of bad http codes: ',bad_http_codes)
+        print('number of unique https uris: ',unique_http_URIs)
+        print('DONE')
+        #print(jsonObj['_source']['layers']['http'])
         pass
 
 
@@ -199,13 +264,13 @@ def ssh_check(_obj):
     return False
 
 def port_check():
-    pass
+    return False
 
 def subnet_check():
-    pass
+    return False
 
 def fuzz_check():
-    pass
+    return False
 
 
 
@@ -213,10 +278,10 @@ def fuzz_check():
 # ---Collect General Data from file---
 # Create a dictonary containing...
 def getMetaData(_directory, _file):
+    ret_ip_dict = {}
+    ret_tcp_dict = {}
+    ret_http_dict = {}
     try:
-        ret_ip_dict = {}
-        ret_tcp_dict = {}
-        ret_http_dict = {}
         data_handle = gzip.open(os.path.join(_directory, _file), 'r')
 
         # Itterate through every Packet get its data from it
@@ -235,42 +300,62 @@ def getMetaData(_directory, _file):
                     ret_ip_dict[src][dst] = 1
                 else:
                     ret_ip_dict[src]['totalSent'] = ret_ip_dict[src].get('totalSent') + 1
-                    ret_ip_dict[src]['totalRecieved'] = ret_ip_dict[src].get('totalRecieved')+ 1 #look into this one
-                    if ret_ip_dict[src].get(dst) == None:
+                    if ret_ip_dict[src].get(dst) == None: 
                         ret_ip_dict[src][dst] = 1
                     else:
                         ret_ip_dict[src][dst] = ret_ip_dict[src].get(dst) + 1
-                # Recording total number of tcp syns a src sends to each dst, total numbver of tcp acks a src send to each dst
+                if ret_ip_dict.get(dst) == None:
+                    ret_ip_dict[dst] = {'totalSent': 0, 'totalRecieved': 1}
+                    ret_ip_dict[dst][src] = 0
+                else:
+                    ret_ip_dict[dst]['totalRecieved'] = ret_ip_dict[dst].get('totalRecieved') + 1
+                # Recording total number of tcp syns a src sends to each dst, total number of tcp acks a src send to each dst
+
                 if 'tcp' in jsonObj['_source']['layers']:
+                    if src in ret_tcp_dict:
+                        pass
+                    else:
+                        ret_tcp_dict[src]={}
+                        ret_tcp_dict[src][dst]={'ack': 0, 'syn': 0}
                     # TCP syn flag but no ack flag
                     if jsonObj['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.syn'] == '1' and jsonObj['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ack'] == '0':
-                        if ret_tcp_dict.get(src) == None:
-                            if ret_tcp_dict[src][dst].get('syn') == None:
-                                ret_tcp_dict[src][dst]['syn'] = 1
-                            else: 
+                        if src in ret_tcp_dict:
+                            if dst in ret_tcp_dict[src]:
                                 ret_tcp_dict[src][dst]['syn'] = ret_tcp_dict[src][dst].get('syn') + 1
+                            else:
+                                ret_tcp_dict[src][dst]={'ack':0,'syn':1}                           
                         else:
-                            ret_tcp_dict[src][dst]['syn'] = ret_tcp_dict[src][dst].get('syn') + 1
+                            ret_tcp_dict[src][dst]['syn'] = 1
+                            ret_tcp_dict[src][dst]['ack'] = 0
+                            
                     # TCP ack flag but no syn flag
                     if jsonObj['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.syn'] == '0' and jsonObj['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ack'] == '1':
-                        if ret_tcp_dict.get(src) == None:
-                            if ret_tcp_dict[src][dst].get('ack') == None:
-                                ret_tcp_dict[src][dst]['ack'] = 1
-                            else: 
+                        if src in ret_tcp_dict:
+                            if dst in ret_tcp_dict[src]:
                                 ret_tcp_dict[src][dst]['ack'] = ret_tcp_dict[src][dst].get('ack') + 1
+                            else:
+                                ret_tcp_dict[src][dst]={'ack':1,'syn':0}                             
                         else:
-                            ret_tcp_dict[src][dst]['ack'] = ret_tcp_dict[src][dst].get('ack') + 1
+                            ret_tcp_dict[src][dst]['syn'] = 0
+                            ret_tcp_dict[src][dst]['ack'] = 1
                 # Recording/Enumerating what tcp port src_ip communicated with on dst_ip
+                if 'tcp' in jsonObj['_source']['layers']:
                     dst_port = jsonObj['_source']['layers']['tcp']['tcp.dstport']
-                    if 'tcp' in jsonObj['_source']['layers']:
-                        if ret_tcp_dict[src][dst].get(dst_port) == None:
-                            ret_tcp_dict[src][dst][dst_port] = 1
+                    if ret_tcp_dict.get(src) == None:
+                        ret_tcp_dict[src][dst][dst_port] = 1
+                    else:
+                        if dst in ret_tcp_dict[src]:
+                            if ret_tcp_dict[src][dst].get(dst_port) == None:
+                                ret_tcp_dict[src][dst][dst_port] = 1
+                            else:
+                                ret_tcp_dict[src][dst][dst_port] = ret_tcp_dict[src][dst].get(dst_port) + 1
                         else:
-                            ret_tcp_dict[src][dst][dst_port] = ret_tcp_dict[src][dst].get(dst_port) + 1
-                # Recorsing total number of 404 responses from a port 80 http server each IP recieves, Total number of unique URIs each non port 80 Ip sent 
+                            ret_tcp_dict[src][dst]={'ack':0,'syn':0} 
+                            ret_tcp_dict[src][dst][dst_port] = 1
+                # Recording total number of 404 responses from a port 80 http server each IP recieves, Total number of unique URIs each non port 80 Ip sent 
                 if 'http' in jsonObj['_source']['layers']:
                     # Count 404s
-                    if 'http.response.code' in ['_source']['layers']['http'] and jsonObj['_source']['layers']['tcp']['tcp.srcport'] == '80':
+                    if 'http.response.code' in jsonObj['_source']['layers']['http'] and jsonObj['_source']['layers']['tcp']['tcp.srcport'] == '80':
                         if ret_http_dict.get(dst) == None:
                             ret_http_dict[dst]['404s'] = 0
                         if jsonObj['_source']['layers']['http']['http.response.code'] == '404':
@@ -282,14 +367,30 @@ def getMetaData(_directory, _file):
                             ret_http_dict[src][jsonObj['_source']['layers']['http']['http.request.uri']] = 1
                         else:
                             ret_http_dict[src][jsonObj['_source']['layers']['http']['http.request.uri']] = ret_http_dict[src].get(jsonObj['_source']['layers']['http']['http.request.uri']) + 1
+                            
 
-    except:
+    except(IOError, KeyError) as r:
+        print(str(r))
+        print('FAIL in data gathering:')
+        print('src ip:', src)
+        print('dst ip:', dst)
+        print(ret_ip_dict[src])
+        #print(ret_tcp_dict)
+        if src in ret_tcp_dict:
+            print(ret_tcp_dict)
+        if src in ret_http_dict:
+            print('\n\n',ret_http_dict)
+        if ret_ip_dict is None:
+            print('ip dict is None')
+        if ret_tcp_dict is None:
+            print('tcp dict is None')
+        if ret_http_dict is None:
+            print('http dict is None')
+        print('End of error readout')
         pass
+    
+    data_handle.close()
     return ret_ip_dict, ret_tcp_dict, ret_http_dict
-
-# AMT of 404 response codes recieved to other codes per IP
-['_source']['layers']['http']['http.response.code'] == '404'
-
 
 if __name__ == '__main__':
     preprocess()
