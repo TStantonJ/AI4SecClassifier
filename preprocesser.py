@@ -91,29 +91,40 @@ def preprocess(directory = './preprocesserFiles'):
                         else:
                             tcp_src = '0'
                             tcp_dst = '0'
-                        # SSH bruteforce
-                        
-                        if new_ip_src != '0':
-                            if 'tcp' in jsonObj['_source']['layers']:
-                                if tcp_meta_dict[ip_src][ip_dst].get('22') == None:
-                                    tcp_SSH_count = '0'
-                                else:
-                                    tcp_SSH_count = str(tcp_meta_dict[ip_src][ip_dst].get('22'))
-                            else:
-                                tcp_SSH_count = '0'
-                        else:
-                            tcp_SSH_count = '0'
-                        
+
+                        # SSH bruteforce features(Ratio of tcp dst port 22 packets to total packets)
+                        # Get total packets sent by src
                         if new_ip_src != '0':
                             total_packets_sent = str(meta_dict[ip_src].get('totalSent'))
                         else:
                             total_packets_sent = '0'
-                        # Port scanning
+                        # Get total dst port 22 packets sent by src and then get ratio of 22 to total
+                        if new_ip_src != '0':
+                            if 'tcp' in jsonObj['_source']['layers']:
+                                if tcp_meta_dict[ip_src][ip_dst].get('22') == None:
+                                    tcp_SSH_ratio = '0'
+                                else:
+                                    tcp_SSH_count = tcp_meta_dict[ip_src][ip_dst].get('22')
+                                    tcp_total_count = 0
+                                    for port in tcp_meta_dict[ip_src][ip_dst]:        
+                                        tcp_total_count += tcp_meta_dict[ip_src][ip_dst].get(port)
+                                    tcp_SSH_ratio = str(tcp_SSH_count/tcp_total_count)
+                            else:
+                                tcp_SSH_ratio = '0'
+                        else:
+                            tcp_SSH_ratio = '0'
+                        
+                        
+
+                        # Port scanning(Ratio of tcp syns(only) to tcp acks(only))
+                        # Get the total acks and syns between the two IPs(Probably unnecessary but need to ask group)
+                        '''
                         if new_ip_src != '0':
                             if 'tcp' in jsonObj['_source']['layers']:
                                 tcp_syns = str(tcp_meta_dict[ip_src][ip_dst]['syn'])
                                 if ip_dst in tcp_meta_dict:             # WE KNOW IF AN IP TRIES TO COMMUNICATED WITH AN IP THAT DOESNT EVER TALK TO ANYONE EVER
                                     if ip_src in tcp_meta_dict[ip_dst]:
+
                                         tcp_acks = str(tcp_meta_dict[ip_dst][ip_src]['ack'])
                                     else:
                                         tcp_acks = '0'
@@ -125,6 +136,22 @@ def preprocess(directory = './preprocesserFiles'):
                         else:
                             tcp_syns = '0'
                             tcp_acks = '0'
+                        '''
+                        #Calculate ratio of total syns to total acks for src_ip
+                        if new_ip_src != '0':
+                            if 'tcp' in jsonObj['_source']['layers']:
+                                tcp_total_syns = tcp_meta_dict[ip_src]['totalSyn']
+                                tcp_total_acks = tcp_meta_dict[ip_src]['totalAck']
+                                if tcp_total_acks != 0:
+                                    tcp_syns_to_acks = str(tcp_total_syns/tcp_total_acks)
+                                else:
+                                    tcp_syns_to_acks = '0'
+                            else:
+                                tcp_syns_to_acks = '0'
+                        else:
+                            tcp_syns_to_acks = '0'
+                            
+
                         # Subnet scanning
                         if new_ip_src != '0':
                             if ip_dst in meta_dict and ip_src in meta_dict:
@@ -145,7 +172,19 @@ def preprocess(directory = './preprocesserFiles'):
                         else:
                             packets_exchanged = '0'
                             num_small_exchanges = '0'
+                        
+                        
                         # Fuzz
+                        if new_ip_src != '0' and 'http' in jsonObj['_source']['layers']:
+                            if ip_src in http_meta_dict:
+                                total_uris = http_meta_dict[ip_src].get('total')
+                                unique_uris = http_meta_dict[ip_src].get('unique')
+                                unique_uri_ratio = str(unique_uris/total_uris)
+                            else:
+                                unique_uri_ratio = '0'
+                        else:
+                            unique_uri_ratio = '0'
+                        '''
                         unique_http_URIs = 0
                         if new_ip_src != '0' and 'http' in jsonObj['_source']['layers']:
                             if ip_src in http_meta_dict:
@@ -161,16 +200,17 @@ def preprocess(directory = './preprocesserFiles'):
                         else:
                             bad_http_codes = '0'
                         unique_http_URIs = str(unique_http_URIs)
+                        '''
 
 
                         # Perform checks
-                        if ssh_check(jsonObj):
+                        if ssh_check(tcp_SSH_ratio):
                             bad_flag = True 
                         if port_check(): #TODO
                             bad_flag = True 
                         if subnet_check(): #TODO
                             bad_flag = True 
-                        if fuzz_check(): #TODO
+                        if fuzz_check(unique_uri_ratio): 
                             bad_flag = True 
                         
 
@@ -190,14 +230,16 @@ def preprocess(directory = './preprocesserFiles'):
                         data_string += tcp_dst              #TCP destination port
                         # SSH Bruteforce
                         data_string += ','
-                        data_string += tcp_SSH_count        #Total number of packets send to tcp port 22 from src_ip
-                        data_string += ','
-                        data_string += total_packets_sent   #Total number of packets sent by src_ip(MAYBE redundant with packets_exchanged)
+                        data_string += tcp_SSH_ratio        #Total number of packets send to tcp port 22 from src_ip
+                        #data_string += ','
+                        #data_string += total_packets_sent   #Total number of packets sent by src_ip(MAYBE redundant with packets_exchanged)
                         # Port scanning(Maybe change from src -> dst to src to all ips )
-                        data_string += ','
-                        data_string += tcp_syns             #Number of tcp SYNs src_ip sent to dst_ip; 
-                        data_string += ','
-                        data_string += tcp_acks             #Number of tcp ACKs dst_ip sent back to src_ip
+                        #data_string += ','
+                        #data_string += tcp_syns             #Number of tcp SYNs src_ip sent to dst_ip; 
+                        #data_string += ','
+                        #data_string += tcp_acks             #Number of tcp ACKs dst_ip sent back to src_ip
+                        #data_string += ','
+                        data_string += tcp_syns_to_acks      #Ratio of syns to acks recieved by src_ip
                         # Subnet scanning
                         data_string += ','
                         data_string += packets_exchanged    #Number of packets exchanged between src and dst
@@ -205,9 +247,11 @@ def preprocess(directory = './preprocesserFiles'):
                         data_string += num_small_exchanges  #Number of unique IP address ip_src talked to that had less than 32 packets exchanged
                         # Fuzz (maybe add uri strings)
                         data_string += ','
-                        data_string += bad_http_codes       #Number of 404 packets from a tcp_src = 80 to ip_src(Amount of 404 resonses from a server)
-                        data_string += ','
-                        data_string += unique_http_URIs     #Number of unique http URIs sent from ip_src to a tcp_dst=80
+                        data_string += unique_uri_ratio
+                        #data_string += ','
+                        #data_string += bad_http_codes       #Number of 404 packets from a tcp_src = 80 to ip_src(Amount of 404 resonses from a server)
+                        #data_string += ','
+                        #data_string += unique_http_URIs     #Number of unique http URIs sent from ip_src to a tcp_dst=80
 
                         # Possible addions: packet size, packet time deltas
 
@@ -257,10 +301,9 @@ def preprocess(directory = './preprocesserFiles'):
 
 
 # ---Functions to Check conditions go here---
-def ssh_check(_obj):
-    if 'tcp' in _obj['_source']['layers']:
-        if _obj['_source']['layers']['tcp']['tcp.dstport'] == '22':
-            return True
+def ssh_check(_tcp_SSH_ratio):
+    if float(_tcp_SSH_ratio) >= 0.50:
+        return True
     return False
 
 def port_check():
@@ -269,7 +312,9 @@ def port_check():
 def subnet_check():
     return False
 
-def fuzz_check():
+def fuzz_check(_unique_uri_ratio):
+    if float(_unique_uri_ratio) >= 0.50:
+        return True
     return False
 
 
@@ -281,6 +326,7 @@ def getMetaData(_directory, _file):
     ret_ip_dict = {}
     ret_tcp_dict = {}
     ret_http_dict = {}
+    used_uris = []
     try:
         data_handle = gzip.open(os.path.join(_directory, _file), 'r')
 
@@ -309,16 +355,21 @@ def getMetaData(_directory, _file):
                     ret_ip_dict[dst][src] = 0
                 else:
                     ret_ip_dict[dst]['totalRecieved'] = ret_ip_dict[dst].get('totalRecieved') + 1
-                # Recording total number of tcp syns a src sends to each dst, total number of tcp acks a src send to each dst
 
+
+                # Recording total number of tcp syns a src sends to each dst, total number of tcp acks a src send to each dst, and total of acks syn a src sent
+                # Also recording the total syns and total acks a source recieves
                 if 'tcp' in jsonObj['_source']['layers']:
+                    # Makes sure src is already in the tcp dict, if not set it up with default data(lots of redundancy here just to make sure)
                     if src in ret_tcp_dict:
                         pass
                     else:
-                        ret_tcp_dict[src]={}
+                        #ret_tcp_dict[src]={}
+                        ret_tcp_dict[src]={'totalAck': 0, 'totalSyn': 0}
                         ret_tcp_dict[src][dst]={'ack': 0, 'syn': 0}
                     # TCP syn flag but no ack flag
                     if jsonObj['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.syn'] == '1' and jsonObj['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ack'] == '0':
+                        ret_tcp_dict[src]['totalSyn'] = ret_tcp_dict[src].get('totalSyn') + 1
                         if src in ret_tcp_dict:
                             if dst in ret_tcp_dict[src]:
                                 ret_tcp_dict[src][dst]['syn'] = ret_tcp_dict[src][dst].get('syn') + 1
@@ -330,6 +381,7 @@ def getMetaData(_directory, _file):
                             
                     # TCP ack flag but no syn flag
                     if jsonObj['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.syn'] == '0' and jsonObj['_source']['layers']['tcp']['tcp.flags_tree']['tcp.flags.ack'] == '1':
+                        ret_tcp_dict[src]['totalAck'] = ret_tcp_dict[src].get('totalAck') + 1
                         if src in ret_tcp_dict:
                             if dst in ret_tcp_dict[src]:
                                 ret_tcp_dict[src][dst]['ack'] = ret_tcp_dict[src][dst].get('ack') + 1
@@ -352,21 +404,29 @@ def getMetaData(_directory, _file):
                         else:
                             ret_tcp_dict[src][dst]={'ack':0,'syn':0} 
                             ret_tcp_dict[src][dst][dst_port] = 1
-                # Recording total number of 404 responses from a port 80 http server each IP recieves, Total number of unique URIs each non port 80 Ip sent 
+
+                # 
                 if 'http' in jsonObj['_source']['layers']:
-                    # Count 404s
-                    if 'http.response.code' in jsonObj['_source']['layers']['http'] and jsonObj['_source']['layers']['tcp']['tcp.srcport'] == '80':
-                        if ret_http_dict.get(dst) == None:
-                            ret_http_dict[dst]['404s'] = 0
-                        if jsonObj['_source']['layers']['http']['http.response.code'] == '404':
-                            ret_http_dict[dst]['404s'] = ret_http_dict[dst].get('404s') + 1
-                    if 'http.request.uri' in jsonObj['_source']['layers']['http'] and jsonObj['_source']['layers']['tcp']['tcp.srcport'] != '80':
-                        if ret_http_dict.get(src) == None:
-                            ret_http_dict[src]['404s'] = 0                            
-                        if ret_http_dict[src].get(jsonObj['_source']['layers']['http']['http.request.uri']) == None:
-                            ret_http_dict[src][jsonObj['_source']['layers']['http']['http.request.uri']] = 1
-                        else:
-                            ret_http_dict[src][jsonObj['_source']['layers']['http']['http.request.uri']] = ret_http_dict[src].get(jsonObj['_source']['layers']['http']['http.request.uri']) + 1
+                    if 'http.request_number' in jsonObj['_source']['layers']['http']:
+                        #Checks if it is a request
+                        if jsonObj['_source']['layers']['http']['http.request_number'] == "1":
+                            #Creates strings for host, destination, and request uri
+                            #host = jsonObj['_source']['layers']['ip']['ip.src']
+                            if 'http.request.full_uri' in jsonObj['_source']['layers']['http']:
+                                uri = jsonObj['_source']['layers']['http']['http.request.full_uri']
+                            else:
+                                uri = "None"
+                        #Checks if unique ip
+                            if src in ret_http_dict:
+                                #increments number of unique used uris and total 
+                                if uri in used_uris:
+                                    ret_http_dict[src]['total'] +=1
+                                else:
+                                    ret_http_dict[src]['unique'] +=1
+                                    ret_http_dict[src]['total'] +=1
+                                    used_uris.append(uri)
+                            else:
+                                ret_http_dict[src] = {"unique": 1, "total" : 1}
                             
 
     except(IOError, KeyError) as r:
