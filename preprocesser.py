@@ -196,7 +196,7 @@ def preprocess(directory = './preprocesserFiles'):
                             bad_flag = True 
                         if port_check(tcp_syns_to_acks):
                             bad_flag = True 
-                        if subnet_check(): #TODO
+                        if subnet_check(percentage_small_exhcanges):
                             bad_flag = True 
                         if fuzz_check(unique_uri_ratio): 
                             bad_flag = True 
@@ -288,7 +288,9 @@ def port_check(_tcp_syns_to_acks):
         return True
     return False
 
-def subnet_check():
+def subnet_check(_percentage_small_exhcanges):
+    if float(_percentage_small_exhcanges) >= 0.80:
+        return True
     return False
 
 def fuzz_check(_unique_uri_ratio):
