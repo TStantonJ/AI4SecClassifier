@@ -208,24 +208,25 @@ def preprocess(directory = './preprocesserFiles'):
                         new_line_encoded = new_line.encode('utf-8')
 
                         # Create PreProcessed Data containing recorded data
-                        data_string =  new_ip_src           #IP source address
+                        data_string =  new_ip_src                   #IP source address
                         data_string += ','
-                        data_string += new_ip_dst           #IP destination address
-                        # TCP Data
+                        data_string += new_ip_dst                   #IP destination address
+                        # -----------    TCP Data    -----------
                         data_string += ','
-                        data_string += tcp_src              #TCP source port
+                        data_string += tcp_src                      #TCP source port
                         data_string += ','
-                        data_string += tcp_dst              #TCP destination port
-                        # SSH Bruteforce
+                        data_string += tcp_dst                      #TCP destination port
+                        # ----------- SSH Bruteforce -----------
                         data_string += ','
-                        data_string += tcp_SSH_ratio        #Total number of packets send to tcp port 22 from src_ip
-                        # Port scanning(Maybe change from src -> dst to src to all ips )
+                        data_string += tcp_SSH_ratio                #Total number of packets send to tcp port 22 from src_ip
+                        # ----------- Port scanning ------------
+                        # (Maybe change from src -> dst to src to all ips )
                         data_string += ','
-                        data_string += tcp_syns_to_acks      #Ratio of syns only to acks only recieved by src_ip
-                        # Subnet scanning
+                        data_string += tcp_syns_to_acks             #Ratio of syns only to acks only recieved by src_ip
+                        # -----------Subnet scanning------------  
                         data_string += ','
-                        data_string += percentage_small_exhcanges #Ration of exchanged with ips that were less than 32 to all ips it talked to
-                        # Fuzz (maybe add uri strings)
+                        data_string += percentage_small_exhcanges   #Ration of exchanged with ips that were less than 32 to all ips it talked to
+                        # -----------     Fuzz       -----------  
                         data_string += ','
                         data_string += unique_uri_ratio             #Ratio of unique uris to all uris sent
 
