@@ -172,6 +172,10 @@ def preprocess(directory = './preprocesserFiles'):
                         else:
                             packets_exchanged = '0'
                             num_small_exchanges = '0'
+                        if num_small_exchanges != '0':
+                            percentage_small_exhcanges = str(int(num_small_exchanges)/int(packets_exchanged))
+                        else:
+                            percentage_small_exhcanges = '0'
                         
                         
                         # Fuzz
@@ -231,27 +235,15 @@ def preprocess(directory = './preprocesserFiles'):
                         # SSH Bruteforce
                         data_string += ','
                         data_string += tcp_SSH_ratio        #Total number of packets send to tcp port 22 from src_ip
-                        #data_string += ','
-                        #data_string += total_packets_sent   #Total number of packets sent by src_ip(MAYBE redundant with packets_exchanged)
                         # Port scanning(Maybe change from src -> dst to src to all ips )
-                        #data_string += ','
-                        #data_string += tcp_syns             #Number of tcp SYNs src_ip sent to dst_ip; 
-                        #data_string += ','
-                        #data_string += tcp_acks             #Number of tcp ACKs dst_ip sent back to src_ip
-                        #data_string += ','
-                        data_string += tcp_syns_to_acks      #Ratio of syns to acks recieved by src_ip
+                        data_string += ','
+                        data_string += tcp_syns_to_acks      #Ratio of syns only to acks only recieved by src_ip
                         # Subnet scanning
                         data_string += ','
-                        data_string += packets_exchanged    #Number of packets exchanged between src and dst
-                        data_string += ','
-                        data_string += num_small_exchanges  #Number of unique IP address ip_src talked to that had less than 32 packets exchanged
+                        data_string += percentage_small_exhcanges #Ration of exchanged with ips that were less than 32 to all ips it talked to
                         # Fuzz (maybe add uri strings)
                         data_string += ','
-                        data_string += unique_uri_ratio
-                        #data_string += ','
-                        #data_string += bad_http_codes       #Number of 404 packets from a tcp_src = 80 to ip_src(Amount of 404 resonses from a server)
-                        #data_string += ','
-                        #data_string += unique_http_URIs     #Number of unique http URIs sent from ip_src to a tcp_dst=80
+                        data_string += unique_uri_ratio             #Ratio of unique uris to all uris sent
 
                         # Possible addions: packet size, packet time deltas
 
