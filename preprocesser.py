@@ -137,6 +137,7 @@ def preprocess(directory = './preprocesserFiles'):
                             tcp_syns = '0'
                             tcp_acks = '0'
                         '''
+
                         #Calculate ratio of total syns to total acks for src_ip
                         if new_ip_src != '0':
                             if 'tcp' in jsonObj['_source']['layers']:
@@ -179,7 +180,7 @@ def preprocess(directory = './preprocesserFiles'):
                         
                         
                         # Fuzz
-                        if new_ip_src != '0' and 'http' in jsonObj['_source']['layers']:
+                        if new_ip_src != '0' and 'http' in jsonObj['_source']['layers'] and tcp_src != '80':
                             if ip_src in http_meta_dict:
                                 total_uris = http_meta_dict[ip_src].get('total')
                                 unique_uris = http_meta_dict[ip_src].get('unique')
@@ -188,29 +189,12 @@ def preprocess(directory = './preprocesserFiles'):
                                 unique_uri_ratio = '0'
                         else:
                             unique_uri_ratio = '0'
-                        '''
-                        unique_http_URIs = 0
-                        if new_ip_src != '0' and 'http' in jsonObj['_source']['layers']:
-                            if ip_src in http_meta_dict:
-                                if http_meta_dict[ip_src].get('404s') != None:
-                                    bad_http_codes = str(http_meta_dict[ip_src].get('404s'))           
-                                else:
-                                    bad_http_codes = '0'
-                                for uri in http_meta_dict[ip_src]:
-                                    if uri != '404s':
-                                        unique_http_URIs += 1
-                            else:
-                                    bad_http_codes = '0'
-                        else:
-                            bad_http_codes = '0'
-                        unique_http_URIs = str(unique_http_URIs)
-                        '''
 
 
                         # Perform checks
                         if ssh_check(tcp_SSH_ratio):
                             bad_flag = True 
-                        if port_check(): #TODO
+                        if port_check(tcp_syns_to_acks):
                             bad_flag = True 
                         if subnet_check(): #TODO
                             bad_flag = True 
@@ -298,14 +282,16 @@ def ssh_check(_tcp_SSH_ratio):
         return True
     return False
 
-def port_check():
+def port_check(_tcp_syns_to_acks):
+    if float(_tcp_syns_to_acks) >= 0.80:
+        return True
     return False
 
 def subnet_check():
     return False
 
 def fuzz_check(_unique_uri_ratio):
-    if float(_unique_uri_ratio) >= 0.50:
+    if float(_unique_uri_ratio) <= 0.50 and float(_unique_uri_ratio) != 0:
         return True
     return False
 
