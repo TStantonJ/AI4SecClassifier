@@ -157,24 +157,30 @@ def preprocess(directory = './preprocesserFiles'):
                         if new_ip_src != '0':
                             if ip_dst in meta_dict and ip_src in meta_dict:
                                 if meta_dict[ip_src].get(ip_dst) != None and meta_dict[ip_dst].get(ip_src) != None:
-                                    packets_exchanged = str(int(meta_dict[ip_src][ip_dst])+int(meta_dict[ip_dst][ip_src]))
+                                    #packets_exchanged = str(int(meta_dict[ip_src][ip_dst])+int(meta_dict[ip_dst][ip_src]))
+                                    num_exchanges = 0
                                     num_small_exchanges = 0
                                     for com in meta_dict[ip_src]:
                                         if com != 'totalSent' and com != 'totalRecieved':
+                                            num_exchanges += 1
                                             if meta_dict[ip_src][com] <= 32:
                                                 num_small_exchanges += 1
                                     num_small_exchanges = str(num_small_exchanges)
                                 else:
                                     packets_exchanged = '0'
-                                    num_small_exchanges = '0'
+                                    num_exchanges = '0'
+                                    #num_small_exchanges = '0'
                             else:
                                 packets_exchanged = '0'
-                                num_small_exchanges = '0'
+                                num_exchanges = '0'
+                                #num_small_exchanges = '0'
                         else:
                             packets_exchanged = '0'
-                            num_small_exchanges = '0'
+                            num_exchanges = '0'
+                            #num_small_exchanges = '0'
                         if num_small_exchanges != '0':
-                            percentage_small_exhcanges = str(int(num_small_exchanges)/int(packets_exchanged))
+                            percentage_small_exhcanges = str(int(num_small_exchanges)/int(num_exchanges))
+                            #percentage_small_exhcanges = str(int(num_small_exchanges)/int(packets_exchanged))
                         else:
                             percentage_small_exhcanges = '0'
                         
@@ -208,22 +214,22 @@ def preprocess(directory = './preprocesserFiles'):
                         new_line_encoded = new_line.encode('utf-8')
 
                         # Create PreProcessed Data containing recorded data
-                        data_string =  new_ip_src                   #IP source address
-                        data_string += ','
-                        data_string += new_ip_dst                   #IP destination address
+                        #data_string =  new_ip_src                   #IP source address
+                        #data_string += ','
+                        #data_string += new_ip_dst                   #IP destination address
                         # -----------    TCP Data    -----------
-                        data_string += ','
-                        data_string += tcp_src                      #TCP source port
-                        data_string += ','
-                        data_string += tcp_dst                      #TCP destination port
+                        #data_string += ','
+                        #data_string += tcp_src                     #TCP source port
+                        #data_string += ','
+                        #data_string += tcp_dst                     #TCP destination port
                         # ----------- SSH Bruteforce -----------
-                        data_string += ','
+                        #data_string += ','
                         data_string += tcp_SSH_ratio                #Total number of packets send to tcp port 22 from src_ip
                         # ----------- Port scanning ------------
                         # (Maybe change from src -> dst to src to all ips )
                         data_string += ','
                         data_string += tcp_syns_to_acks             #Ratio of syns only to acks only recieved by src_ip
-                        # -----------Subnet scanning------------  
+                        # -----------Subnet scanning------------    #Maybe time delta but unconfirmed, ICMP packets too but is a weaker feature
                         data_string += ','
                         data_string += percentage_small_exhcanges   #Ration of exchanged with ips that were less than 32 to all ips it talked to
                         # -----------     Fuzz       -----------  
@@ -246,10 +252,10 @@ def preprocess(directory = './preprocesserFiles'):
                             good_data_out.write(new_line_encoded)
 
                         #Debug print statements
-                        if item_number in good_data_numbers:
-                            print('Good Item:', data_string)
-                        elif item_number in bad_data_numbers:
-                            print('Bad Item: ', data_string)
+                        #if item_number in good_data_numbers:
+                        #    print('Good Item:', data_string)
+                        #elif item_number in bad_data_numbers:
+                        #    print('Bad Item: ', data_string)
                         
         # Close files
         good_data_out.close()
