@@ -1,6 +1,7 @@
 import array
 from ast import Return
 from cProfile import label
+from distutils.log import debug
 import sys
 import os
 import json
@@ -11,161 +12,169 @@ import math
 
 # Data Order: Port, source IP, dest IP,
 def preprocess(directory = './preprocesserFiles'):
-    try:
         with gzip.open('./classifierFiles/goodData.gz', 'w') as good_data_out:
             with gzip.open('./classifierFiles/badData.gz', 'w') as bad_data_out:
                 # Process every file in proccess directory
                 sortedFiles = sorted((f for f in os.listdir(directory) if not f.startswith(".")), key=str.lower)
                 
                 for file in sortedFiles:
-                    
-                    # Get current file and check its appropriate
-                    filename = os.fsdecode(file)
+                    try:
+                        # Get current file and check its appropriate
+                        filename = os.fsdecode(file)
 
 
-                    # Get/store Meta Data from current file
-                    meta_dict, tcp_meta_dict, http_meta_dict = getMetaData(directory, file)
-                    # Item tracking for debug/Arrays to check outputs
-                    item_number = 0
-                    good_data_numbers = [430,431,432,433,434,435,436,437,438]
-                    bad_data_numbers = [700,701,702,703,704,708,709,710]
+                        # Get/store Meta Data from current file
+                        meta_dict, tcp_meta_dict, http_meta_dict = getMetaData(directory, file)
 
-                    in_handle = gzip.open(os.path.join(directory, file), 'r')
-                    for line in in_handle:
-                        item_number += 1
+                        # Item tracking for debug/Arrays to check outputs
+                        debug_dict = {}
+                        item_number = 0
+                        good_data_numbers = [430,431,432,433,434,435,436,437,438]
+                        bad_data_numbers = [700,701,702,703,704,708,709,710]
 
-                        # ---Setup---
-                        # Check variables
-                        bad_flag = False
-                        ssh_flag = False
+                        in_handle = gzip.open(os.path.join(directory, file), 'r')
+                        for line in in_handle:
+                            item_number += 1
 
-                        # Decode and convert line to json obj
-                        line = line.decode('utf-8')
-                        jsonObj = json.loads(line)
+                            # ---Setup---
+                            # Check variables
+                            bad_flag = False
+                            ssh_flag = False
+                            port_flag = False
+                            subnet_flag = False
+                            fuzz_flag = False
+
+                            # Decode and convert line to json obj
+                            line = line.decode('utf-8')
+                            jsonObj = json.loads(line)
 
 
-                        # ---Data Processing---
-                        
-                        # Assign relevant data to variables
-                        # IP addresses
-                        if 'ip' in jsonObj['_source']['layers']:
-                            ip_src = jsonObj['_source']['layers']['ip']['ip.src']
-                            ip_dst = jsonObj['_source']['layers']['ip']['ip.dst']
-
-                            #Catch 127.0.0.1
-                            if ip_dst == '127.0.0.1' or ip_src == '127.0.0.1':
-                                continue
-                            if ip_src == ip_dst:
-                                continue
-
-                            src_parts = ip_src.split('.')
-                            new_ip_src = ''
-                            for sub_part in range(4):
-                                if len(src_parts[sub_part]) == 3:
-                                    new_ip_src += src_parts[sub_part]
-                                elif len(src_parts[sub_part]) == 2:
-                                    new_ip_src += '0'+ src_parts[sub_part]
-                                else:
-                                    new_ip_src += '00' + src_parts[sub_part]
+                            # ---Data Processing---
                             
-                            dst_parts = ip_dst.split('.')
-                            new_ip_dst = ''
-                            for sub_part in range(4):
-                                if len(dst_parts[sub_part]) == 3:
-                                    new_ip_dst += dst_parts[sub_part]
-                                elif len(dst_parts[sub_part]) == 2:
-                                    new_ip_dst += '0'+ dst_parts[sub_part]
+                            # Assign relevant data to variables
+                            # IP addresses
+                            if 'ip' in jsonObj['_source']['layers']:
+                                ip_src = jsonObj['_source']['layers']['ip']['ip.src']
+                                ip_dst = jsonObj['_source']['layers']['ip']['ip.dst']
+
+                                #Catch 127.0.0.1
+                                if ip_dst == '127.0.0.1' or ip_src == '127.0.0.1':
+                                    continue
+                                if ip_src == ip_dst:
+                                    continue
+
+                                src_parts = ip_src.split('.')
+                                new_ip_src = ''
+                                for sub_part in range(4):
+                                    if len(src_parts[sub_part]) == 3:
+                                        new_ip_src += src_parts[sub_part]
+                                    elif len(src_parts[sub_part]) == 2:
+                                        new_ip_src += '0'+ src_parts[sub_part]
+                                    else:
+                                        new_ip_src += '00' + src_parts[sub_part]
+                                
+                                dst_parts = ip_dst.split('.')
+                                new_ip_dst = ''
+                                for sub_part in range(4):
+                                    if len(dst_parts[sub_part]) == 3:
+                                        new_ip_dst += dst_parts[sub_part]
+                                    elif len(dst_parts[sub_part]) == 2:
+                                        new_ip_dst += '0'+ dst_parts[sub_part]
+                                    else:
+                                        new_ip_dst += '00' + dst_parts[sub_part]
+                            else:
+                                new_ip_src = '0'
+                                new_ip_dst = '0'
+                            # TCP Ports
+                            if new_ip_src != '0':
+                                if 'tcp' in jsonObj['_source']['layers']:
+                                    tcp_src = str(jsonObj['_source']['layers']['tcp']['tcp.srcport'])
+                                    tcp_dst = str(jsonObj['_source']['layers']['tcp']['tcp.dstport'])
                                 else:
-                                    new_ip_dst += '00' + dst_parts[sub_part]
-                        else:
-                            new_ip_src = '0'
-                            new_ip_dst = '0'
-                        # TCP Ports
-                        if new_ip_src != '0':
-                            if 'tcp' in jsonObj['_source']['layers']:
-                                tcp_src = str(jsonObj['_source']['layers']['tcp']['tcp.srcport'])
-                                tcp_dst = str(jsonObj['_source']['layers']['tcp']['tcp.dstport'])
+                                    tcp_src = '0'
+                                    tcp_dst = '0'
                             else:
                                 tcp_src = '0'
                                 tcp_dst = '0'
-                        else:
-                            tcp_src = '0'
-                            tcp_dst = '0'
 
-                        # SSH bruteforce features(Ratio of tcp dst port 22 packets to total packets)
-                        # Get total packets sent by src
-                        if new_ip_src != '0':
-                            total_packets_sent = str(meta_dict[ip_src].get('totalSent'))
-                        else:
-                            total_packets_sent = '0'
-                        # Get total dst port 22 packets sent by src and then get ratio of 22 to total
-                        if new_ip_src != '0':
-                            if 'tcp' in jsonObj['_source']['layers']:
-                                if tcp_meta_dict[ip_src][ip_dst].get('22') == None:
-                                    tcp_SSH_ratio = '0'
+                            # SSH bruteforce features(Ratio of tcp dst port 22 packets to total packets)
+                            # Get total packets sent by src
+                            if new_ip_src != '0':
+                                total_packets_sent = str(meta_dict[ip_src].get('totalSent'))
+                            else:
+                                total_packets_sent = '0'
+                            # Get total dst port 22 packets sent by src and then get ratio of 22 to total
+                            if new_ip_src != '0':
+                                if 'tcp' in jsonObj['_source']['layers']:
+                                    if tcp_meta_dict[ip_src][ip_dst].get('22') == None:
+                                        tcp_SSH_ratio = '0'
+                                    else:
+                                        tcp_SSH_count = tcp_meta_dict[ip_src][ip_dst].get('22')
+                                        tcp_total_count = 0
+                                        for port in tcp_meta_dict[ip_src][ip_dst]:        
+                                            tcp_total_count += tcp_meta_dict[ip_src][ip_dst].get(port)
+                                        tcp_SSH_ratio = str(int((tcp_SSH_count/tcp_total_count)*100))
                                 else:
-                                    tcp_SSH_count = tcp_meta_dict[ip_src][ip_dst].get('22')
-                                    tcp_total_count = 0
-                                    for port in tcp_meta_dict[ip_src][ip_dst]:        
-                                        tcp_total_count += tcp_meta_dict[ip_src][ip_dst].get(port)
-                                    tcp_SSH_ratio = str(tcp_SSH_count/tcp_total_count)
+                                    tcp_SSH_ratio = '0'
                             else:
                                 tcp_SSH_ratio = '0'
-                        else:
-                            tcp_SSH_ratio = '0'
-                        
-                        
+                            
+                            
 
-                        # Port scanning(Ratio of tcp syns(only) to tcp acks(only))
-                        # Get the total acks and syns between the two IPs(Probably unnecessary but need to ask group)
-                        '''
-                        if new_ip_src != '0':
-                            if 'tcp' in jsonObj['_source']['layers']:
-                                tcp_syns = str(tcp_meta_dict[ip_src][ip_dst]['syn'])
-                                if ip_dst in tcp_meta_dict:             # WE KNOW IF AN IP TRIES TO COMMUNICATED WITH AN IP THAT DOESNT EVER TALK TO ANYONE EVER
-                                    if ip_src in tcp_meta_dict[ip_dst]:
+                            # Port scanning(Ratio of tcp syns(only) to tcp acks(only))
+                            # Get the total acks and syns between the two IPs(Probably unnecessary but need to ask group)
+                            '''
+                            if new_ip_src != '0':
+                                if 'tcp' in jsonObj['_source']['layers']:
+                                    tcp_syns = str(tcp_meta_dict[ip_src][ip_dst]['syn'])
+                                    if ip_dst in tcp_meta_dict:             # WE KNOW IF AN IP TRIES TO COMMUNICATED WITH AN IP THAT DOESNT EVER TALK TO ANYONE EVER
+                                        if ip_src in tcp_meta_dict[ip_dst]:
 
-                                        tcp_acks = str(tcp_meta_dict[ip_dst][ip_src]['ack'])
+                                            tcp_acks = str(tcp_meta_dict[ip_dst][ip_src]['ack'])
+                                        else:
+                                            tcp_acks = '0'
                                     else:
                                         tcp_acks = '0'
                                 else:
+                                    tcp_syns = '0'
                                     tcp_acks = '0'
                             else:
                                 tcp_syns = '0'
                                 tcp_acks = '0'
-                        else:
-                            tcp_syns = '0'
-                            tcp_acks = '0'
-                        '''
+                            '''
 
-                        #Calculate ratio of total syns to total acks for src_ip
-                        if new_ip_src != '0':
-                            if 'tcp' in jsonObj['_source']['layers']:
-                                tcp_total_syns = tcp_meta_dict[ip_src]['totalSyn']
-                                tcp_total_acks = tcp_meta_dict[ip_src]['totalAck']
-                                if tcp_total_acks != 0:
-                                    tcp_syns_to_acks = str(tcp_total_syns/tcp_total_acks)
+                            #Calculate ratio of total syns to total acks for src_ip
+                            if new_ip_src != '0':
+                                if 'tcp' in jsonObj['_source']['layers']:
+                                    tcp_total_syns = tcp_meta_dict[ip_src]['totalSyn']
+                                    tcp_total_acks = tcp_meta_dict[ip_src]['totalAck']
+                                    if tcp_total_acks != 0:
+                                        tcp_syns_to_acks = str(int((tcp_total_syns/tcp_total_acks)*100))
+                                    else:
+                                        tcp_syns_to_acks = '0'
                                 else:
                                     tcp_syns_to_acks = '0'
                             else:
                                 tcp_syns_to_acks = '0'
-                        else:
-                            tcp_syns_to_acks = '0'
-                            
+                                
 
-                        # Subnet scanning
-                        if new_ip_src != '0':
-                            if ip_dst in meta_dict and ip_src in meta_dict:
-                                if meta_dict[ip_src].get(ip_dst) != None and meta_dict[ip_dst].get(ip_src) != None:
-                                    #packets_exchanged = str(int(meta_dict[ip_src][ip_dst])+int(meta_dict[ip_dst][ip_src]))
-                                    num_exchanges = 0
-                                    num_small_exchanges = 0
-                                    for com in meta_dict[ip_src]:
-                                        if com != 'totalSent' and com != 'totalRecieved':
-                                            num_exchanges += 1
-                                            if meta_dict[ip_src][com] <= 32:
-                                                num_small_exchanges += 1
-                                    num_small_exchanges = str(num_small_exchanges)
+                            # Subnet scanning
+                            if new_ip_src != '0':
+                                if ip_dst in meta_dict and ip_src in meta_dict:
+                                    if meta_dict[ip_src].get(ip_dst) != None and meta_dict[ip_dst].get(ip_src) != None:
+                                        #packets_exchanged = str(int(meta_dict[ip_src][ip_dst])+int(meta_dict[ip_dst][ip_src]))
+                                        num_exchanges = 0
+                                        num_small_exchanges = 0
+                                        for com in meta_dict[ip_src]:
+                                            if com != 'totalSent' and com != 'totalRecieved':
+                                                num_exchanges += 1
+                                                if meta_dict[ip_src][com] <= 32:
+                                                    num_small_exchanges += 1
+                                        num_small_exchanges = str(num_small_exchanges)
+                                    else:
+                                        packets_exchanged = '0'
+                                        num_exchanges = '0'
+                                        #num_small_exchanges = '0'
                                 else:
                                     packets_exchanged = '0'
                                     num_exchanges = '0'
@@ -173,134 +182,171 @@ def preprocess(directory = './preprocesserFiles'):
                             else:
                                 packets_exchanged = '0'
                                 num_exchanges = '0'
-                                #num_small_exchanges = '0'
-                        else:
-                            packets_exchanged = '0'
-                            num_exchanges = '0'
-                            #num_small_exchanges = '0'
-                        if num_small_exchanges != '0':
-                            percentage_small_exhcanges = str(int(num_small_exchanges)/int(num_exchanges))
-                            #percentage_small_exhcanges = str(int(num_small_exchanges)/int(packets_exchanged))
-                        else:
-                            percentage_small_exhcanges = '0'
-                        
-                        
-                        # Fuzz
-                        if new_ip_src != '0' and 'http' in jsonObj['_source']['layers'] and tcp_src != '80':
-                            if ip_src in http_meta_dict:
-                                total_uris = http_meta_dict[ip_src].get('total')
-                                unique_uris = http_meta_dict[ip_src].get('unique')
-                                unique_uri_ratio = str(unique_uris/total_uris)
+                                num_small_exchanges = '0'
+                            if num_small_exchanges != '0':
+                                percentage_small_exhcanges = int(int(num_small_exchanges)/int(num_exchanges)*100)
+                                if percentage_small_exhcanges <= 0 or meta_dict[ip_src]['totalSent'] < 15:         #IMPORTANT: TALK TO CT(HAD CROSS TALK WITH FUZZER)
+                                    percentage_small_exhcanges = '0'
+                                else:
+                                    percentage_small_exhcanges = str(percentage_small_exhcanges)
+                                #percentage_small_exhcanges = str(int(num_small_exchanges)/int(packets_exchanged))
+                            else:
+                                percentage_small_exhcanges = '0' # IMPORTANT: WHAT NUM SHOULD THIS BE
+                            
+                            
+                            # Fuzz
+                            if new_ip_src != '0' and 'http' in jsonObj['_source']['layers'] and tcp_src != '80':
+                                if ip_src in http_meta_dict:
+                                    # Get URI ratios
+                                    total_uris = http_meta_dict[ip_src].get('total')
+                                    unique_uris = http_meta_dict[ip_src].get('unique')
+                                    unique_uri_ratio = str(int((unique_uris/total_uris)*100)) 
+                                    # Get http responce codes
+                                    code_404 = http_meta_dict[ip_src].get('404Codes')
+                                    code_200 = http_meta_dict[ip_src].get('200Codes')
+                                    code_other = http_meta_dict[ip_src].get('otherCodes')
+                                    code_total = code_404 + code_200
+                                    if code_total != 0 and code_200 != 0:
+                                        code_ratio = str(int(code_404/code_200))
+                                        if code_404 != 0:
+                                            print(code_ratio)
+                                            print(code_200)
+                                            print(code_404)
+                                            print(code_other)
+                                else:
+                                    unique_uri_ratio = '0'
+                                    total_uris = '0'
+                                    code_ratio = '0'
                             else:
                                 unique_uri_ratio = '0'
-                        else:
-                            unique_uri_ratio = '0'
+                                total_uris = '0'
+                                code_ratio = '0'
 
 
-                        # Perform checks
-                        if ssh_check(tcp_SSH_ratio):
-                            bad_flag = True 
-                        if port_check(tcp_syns_to_acks):
-                            bad_flag = True 
-                        if subnet_check(percentage_small_exhcanges):
-                            bad_flag = True 
-                        if fuzz_check(unique_uri_ratio): 
-                            bad_flag = True 
-                        
+                            # Perform checks
+                            if ssh_check(tcp_SSH_ratio):
+                                bad_flag = True 
+                                ssh_flag = True
+                            if port_check(tcp_syns_to_acks):
+                                bad_flag = True 
+                                port_flag = True
+                            if subnet_check(percentage_small_exhcanges):
+                                bad_flag = True 
+                                subnet_flag = True
+                            if fuzz_check(unique_uri_ratio, total_uris): 
+                                bad_flag = True 
+                                fuzz_flag = True
+                            
 
-                        # ---Data Out---
-                        # New line encoded variable (for data seperation)
-                        new_line = '\n'
-                        new_line_encoded = new_line.encode('utf-8')
+                            # ---Data Out---
+                            # New line encoded variable (for data seperation)
+                            new_line = '\n'
+                            new_line_encoded = new_line.encode('utf-8')
 
-                        # Create PreProcessed Data containing recorded data
-                        #data_string =  new_ip_src                   #IP source address
-                        #data_string += ','
-                        #data_string += new_ip_dst                   #IP destination address
-                        # -----------    TCP Data    -----------
-                        #data_string += ','
-                        #data_string += tcp_src                     #TCP source port
-                        #data_string += ','
-                        #data_string += tcp_dst                     #TCP destination port
-                        # ----------- SSH Bruteforce -----------
-                        #data_string += ','
-                        data_string += tcp_SSH_ratio                #Total number of packets send to tcp port 22 from src_ip
-                        # ----------- Port scanning ------------
-                        # (Maybe change from src -> dst to src to all ips )
-                        data_string += ','
-                        data_string += tcp_syns_to_acks             #Ratio of syns only to acks only recieved by src_ip
-                        # -----------Subnet scanning------------    #Maybe time delta but unconfirmed, ICMP packets too but is a weaker feature
-                        data_string += ','
-                        data_string += percentage_small_exhcanges   #Ration of exchanged with ips that were less than 32 to all ips it talked to
-                        # -----------     Fuzz       -----------  
-                        data_string += ','
-                        data_string += unique_uri_ratio             #Ratio of unique uris to all uris sent
+                            # Create PreProcessed Data containing recorded data
+                            #data_string =  new_ip_src                   #IP source address
+                            #data_string += ','
+                            #data_string += new_ip_dst                   #IP destination address
+                            # -----------    TCP Data    -----------
+                            #data_string += ','
+                            #data_string += tcp_src                     #TCP source port
+                            #data_string += ','
+                            #data_string += tcp_dst                     #TCP destination port
+                            # ----------- SSH Bruteforce ----------- #average ssh packet size(maybe while connecting)     
+                            #Feature 1: A high percentage of packets sent from an attacker will be to a dst port 22
+                            #data_string += ','
+                            data_string = tcp_SSH_ratio                #Total number of packets send to tcp port 22 from src_ip
+                            # ----------- Port scanning ------------
+                            # (Maybe change from src -> dst to src to all ips )
+                            # Feature 1: An attacker will send many syns but follow up with relatively small acks if they are scanning
+                            data_string += ','
+                            data_string += tcp_syns_to_acks             #Ratio of syns only to acks only recieved by src_ip
+                            # -----------Subnet scanning------------    #Maybe time delta but unconfirmed, ICMP packets too but is a weaker feature
+                            data_string += ','
+                            data_string += percentage_small_exhcanges   #Ration of exchanged with ips that were less than 32 to all ips it talked to
+                            # -----------     Fuzz       -----------    #404's to other status codes recieved from dst_ip
+                            data_string += ','
+                            data_string += unique_uri_ratio             #Ratio of unique uris to all uris sent #Base line is set by current traffic, can be circumvented 
+                            data_string += ','                          
+                            data_string += code_ratio  # TODO           #Raio of 404 to total codes recieved
 
-                        # Possible addions: packet size, packet time deltas
+                            # Possible addions: packet size, packet time deltas
+                            
+
+                            # Convert data string to bytes
+                            data_string_encoded = data_string.encode('utf-8')
 
 
-                        # Convert data string to bytes
-                        data_string_encoded = data_string.encode('utf-8')
+                            # Add data to bad or good data file
+                            if bad_flag:
+                                bad_data_out.write(data_string_encoded)
+                                bad_data_out.write(new_line_encoded)
+                            else:
+                                good_data_out.write(data_string_encoded)
+                                good_data_out.write(new_line_encoded)
+
+                            #Debug print statements
+
+                            #Port scanning information
+                            if port_flag == True:
+                                if debug_dict.get(ip_src) == None:
+                                    debug_dict[ip_src] = 1
+                                else:
+                                    debug_dict[ip_src] = debug_dict.get(ip_src) + 1
+                            #if item_number in good_data_numbers:
+                            #    print('Good Item:', data_string)
+                            #elif item_number in bad_data_numbers:
+                            #    print('Bad Item: ', data_string)
+                            if percentage_small_exhcanges == '100':
+                                print(num_exchanges)
+                                print(num_small_exchanges)
+                                print(meta_dict[ip_src]['totalSent'])
+        
+                    except (IOError, KeyError) as e:
+                        #print('ERROR on item: ', item_number)
+                        #print(str(e))
 
 
-                        # Add data to bad or good data file
-                        if bad_flag:
-                            bad_data_out.write(data_string_encoded)
-                            bad_data_out.write(new_line_encoded)
-                        else:
-                            good_data_out.write(data_string_encoded)
-                            good_data_out.write(new_line_encoded)
-
-                        #Debug print statements
-                        #if item_number in good_data_numbers:
-                        #    print('Good Item:', data_string)
-                        #elif item_number in bad_data_numbers:
-                        #    print('Bad Item: ', data_string)
-                        
+                        #print('src: ',new_ip_src)
+                        #print('dst: ',new_ip_dst)
+                        #print('tcp src port:', tcp_src)
+                        #print('tcp dst port:',tcp_dst)
+                        #print('tcp ssh count:',tcp_SSH_count)
+                        #print('total packets sent: ',total_packets_sent)
+                        #print('total tcp syns: ',tcp_syns)
+                        #print('total tcp acks: ',tcp_acks)
+                        #print('total packets exchanged: ',packets_exchanged)
+                        #print('number of small exchanges: ',num_small_exchanges)
+                        #print('number of bad http codes: ',bad_http_codes)
+                        #print('number of unique https uris: ',unique_http_URIs)
+                        #print('DONE')
+                        #print(jsonObj['_source']['layers']['http'])
+                        continue
         # Close files
         good_data_out.close()
         bad_data_out.close()
 
-    except (IOError, KeyError) as e:
-        #print('ERROR on item: ', item_number)
-        #print(str(e))
-
-
-        #print('src: ',new_ip_src)
-        #print('dst: ',new_ip_dst)
-        #print('tcp src port:', tcp_src)
-        #print('tcp dst port:',tcp_dst)
-        #print('tcp ssh count:',tcp_SSH_count)
-        #print('total packets sent: ',total_packets_sent)
-        #print('total tcp syns: ',tcp_syns)
-        #print('total tcp acks: ',tcp_acks)
-        #print('total packets exchanged: ',packets_exchanged)
-        #print('number of small exchanges: ',num_small_exchanges)
-        #print('number of bad http codes: ',bad_http_codes)
-        #print('number of unique https uris: ',unique_http_URIs)
-        #print('DONE')
-        #print(jsonObj['_source']['layers']['http'])
-        pass
+    
 
 
 # ---Functions to Check conditions go here---
 def ssh_check(_tcp_SSH_ratio):
-    if float(_tcp_SSH_ratio) >= 0.50:
+    if float(_tcp_SSH_ratio) >= 50:
         return True
     return False
 
 def port_check(_tcp_syns_to_acks):
-    if float(_tcp_syns_to_acks) >= 0.80:
+    if float(_tcp_syns_to_acks) >= 80:
         return True
     return False
 
 def subnet_check(_percentage_small_exhcanges):
-    if float(_percentage_small_exhcanges) >= 0.80:
+    if float(_percentage_small_exhcanges) >= 80:
         return True
     return False
 
-def fuzz_check(_unique_uri_ratio):
-    if float(_unique_uri_ratio) <= 0.50 and float(_unique_uri_ratio) != 0:
+def fuzz_check(_unique_uri_ratio, _total_uris):
+    if float(_unique_uri_ratio) >= 50 and int(_total_uris) != 0:
         return True
     return False
 
@@ -313,6 +359,7 @@ def getMetaData(_directory, _file):
     ret_ip_dict = {}
     ret_tcp_dict = {}
     ret_http_dict = {}
+    ret_icmp_dict = {}
     used_uris = []
     try:
         data_handle = gzip.open(os.path.join(_directory, _file), 'r')
@@ -394,11 +441,11 @@ def getMetaData(_directory, _file):
 
                 # 
                 if 'http' in jsonObj['_source']['layers']:
+                    # Log URIs
                     if 'http.request_number' in jsonObj['_source']['layers']['http']:
                         #Checks if it is a request
                         if jsonObj['_source']['layers']['http']['http.request_number'] == "1":
-                            #Creates strings for host, destination, and request uri
-                            #host = jsonObj['_source']['layers']['ip']['ip.src']
+                            #Creates strings for host, destination, and request uri\
                             if 'http.request.full_uri' in jsonObj['_source']['layers']['http']:
                                 uri = jsonObj['_source']['layers']['http']['http.request.full_uri']
                             else:
@@ -413,7 +460,32 @@ def getMetaData(_directory, _file):
                                     ret_http_dict[src]['total'] +=1
                                     used_uris.append(uri)
                             else:
-                                ret_http_dict[src] = {"unique": 1, "total" : 1}
+                                ret_http_dict[src] = {"unique": 1, "total" : 1, "404Codes" : 0, "200Codes" : 0, "otherCodes" : 0}
+                    # Log Responce Codes
+                    # Check if this is a responce 
+                    if 'http.response_for.uri' in jsonObj['_source']['layers']['http']:
+                        if dst not in ret_http_dict:
+                            ret_http_dict[dst] = {"unique": 0, "total" : 0, "404Codes" : 0, "200Codes" : 0, "otherCodes" : 0}
+                        path = list(jsonObj['_source']['layers']['http'])
+                        responseCode = jsonObj['_source']['layers']['http'][path[0]]["http.response.code"]
+                        #print(responseCode)
+                        if responseCode == '404':
+                            ret_http_dict[dst]['404Codes'] += 1
+                            #print(ret_http_dict[dst]['404Codes'])
+                        elif responseCode == '200':
+                            ret_http_dict[dst]['200Codes'] += 1
+                        else:
+                            ret_http_dict[dst]['otherCodes'] += 1
+                # Log ICMP calls
+                elif 'icmp' in jsonObj['_source']['layers']:
+                    if src in ret_icmp_dict:
+                        if dst in ret_icmp_dict[src]:
+                            ret_icmp_dict[src][dst] = ret_icmp_dict[src].get(dst) + 1
+                        else:
+                            ret_icmp_dict[src][dst] = 1
+                    else:
+                        ret_icmp_dict[src] = {dst:1}
+
                             
 
     except(IOError, KeyError) as r:
