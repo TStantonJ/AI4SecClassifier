@@ -5,9 +5,13 @@ import os
 import json
 import gzip
 from pathlib import Path
+import numpy as np
+import matplotlib.pyplot as plt
 import re
 
+
 from sklearn import svm
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
  
 
@@ -62,9 +66,11 @@ train_data,test_data,train_labels,test_labels = train_test_split(data,labels,tes
 
 # Train and test model
 model = svm.SVC()
-model.fit(train_data, train_labels) 
+model.fit(train_data, train_labels)
+model2 = KNeighborsClassifier(3) 
+model2.fit(train_data, train_labels)
 
-results = model.predict(test_data)
+results = model2.predict(test_data)
 
 
 # Output Testing Results
